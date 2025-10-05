@@ -1,0 +1,40 @@
+{
+  "version": "1.0",
+  "partners": [
+    { "id": "ptnr_klarity",  "api_key": "KLARITY_TEST_KEY", "markup_pct": 0.08, "regions": ["US"], "products": ["shipping","ppi"] },
+    { "id": "ptnr_afterday", "api_key": "AFTERDAY_TEST_KEY", "markup_pct": 0.05, "regions": ["US"], "products": ["shipping","ppi"] }
+  ],
+  "carriers": [
+    { "id": "c_atlas", "name": "Atlas",
+      "appetite": {
+        "shipping": { "allowed_states": "ALL", "excluded_categories": ["jewelry_high_value"], "max_declared_value": 5000 },
+        "ppi":      { "max_risk_band": "C", "max_term_months": 12 }
+      },
+      "capacity": { "monthly_policies": 20000 },
+      "pricing_curve_ref": "atlas_v1"
+    },
+    { "id": "c_beacon", "name": "Beacon",
+      "appetite": {
+        "shipping": { "allowed_states": "ALL", "excluded_categories": [], "max_declared_value": 7500 },
+        "ppi":      { "max_risk_band": "D", "excluded_job_categories": ["seasonal_temp"], "max_term_months": 18 }
+      },
+      "capacity": { "monthly_policies": 15000 },
+      "pricing_curve_ref": "beacon_v1"
+    }
+  ],
+  "pricing": {
+    "shipping": {
+      "base_rate_per_100_value": { "atlas_v1": 0.55, "beacon_v1": 0.60 },
+      "category_multiplier": {
+        "general": 1.00, "electronics": 1.15, "electronics_high_value": 1.35, "apparel": 0.95, "jewelry_high_value": 1.60
+      },
+      "destination_multiplier": { "low": 0.9, "medium": 1.0, "high": 1.2 },
+      "service_level_multiplier": { "ground": 1.00, "expedited": 1.10, "overnight": 1.20 }
+    },
+    "ppi": {
+      "base_rate_per_100_value": { "atlas_v1": 0.80, "beacon_v1": 0.85 },
+      "term_multiplier": { "<=6": 0.9, "7-12": 1.0, "13-18": 1.1, "19-24": 1.25 },
+      "band_multiplier": { "A": 0.85, "B": 0.95, "C": 1.05, "D": 1.20, "E": 1.35 }
+    }
+  }
+}

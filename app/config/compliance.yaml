@@ -1,0 +1,30 @@
+version: "1.0"
+rules:
+  - id: ban_ppi_states
+    applies_to: ppi
+    type: block
+    criteria: { state_in: ["GA", "VT"] }
+    message: "PPI not available in this state."
+  - id: min_age_ppi
+    applies_to: ppi
+    type: block
+    criteria: { min_age: 18 }
+    message: "Policyholder must be at least 18 years old."
+  - id: min_tenure_ppi
+    applies_to: ppi
+    type: block
+    criteria: { min_tenure_months: 6 }
+    message: "Employment tenure must be at least 6 months."
+  - id: fragile_shipping_ak_hi
+    applies_to: shipping
+    type: block
+    criteria: { state_in: ["AK","HI"], item_category_in: ["jewelry_high_value"] }
+    message: "Fragile/high-value items not covered to AK/HI."
+  - id: ppi_disclosure
+    applies_to: ppi
+    type: disclosure
+    message: "PPI covers installments for involuntary unemployment, disability, or death subject to waiting periods and limits."
+  - id: shipping_disclosure
+    applies_to: shipping
+    type: disclosure
+    message: "Shipping Insurance covers loss/damage in transit up to declared value, subject to exclusions."
