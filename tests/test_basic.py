@@ -42,7 +42,7 @@ def test_portfolio_endpoint_authentication():
 
 def test_quotes_endpoint_with_auth():
     """Test quotes endpoint with valid authentication."""
-    headers = {"Authorization": "Bearer sk_test_partner_1"}
+    headers = {"Authorization": "Bearer KLARITY_TEST_KEY"}
     data = {
         "product_code": "shipping",
         "partner_id": "ptnr_klarity",
@@ -59,7 +59,7 @@ def test_quotes_endpoint_with_auth():
 
 def test_bindings_endpoint_with_auth():
     """Test bindings endpoint with valid authentication."""
-    headers = {"Authorization": "Bearer sk_test_partner_1"}
+    headers = {"Authorization": "Bearer KLARITY_TEST_KEY"}
     data = {
         "quote_id": 1,
         "policyholder": {

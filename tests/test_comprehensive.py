@@ -706,7 +706,7 @@ class TestBindFlow:
     def test_bind_creates_policy(self):
         """Test that binding creates a policy record."""
         # First create a quote
-        headers = {"Authorization": "Bearer sk_test_partner_1"}
+        headers = {"Authorization": "Bearer KLARITY_TEST_KEY"}
         quote_data = {
             "product_code": "shipping",
             "partner_id": "ptnr_klarity",
@@ -748,7 +748,7 @@ class TestBindFlow:
         import uuid
         
         # Create quote WITHOUT idempotency key
-        quote_headers = {"Authorization": "Bearer sk_test_partner_1"}
+        quote_headers = {"Authorization": "Bearer KLARITY_TEST_KEY"}
         quote_data = {
             "product_code": "shipping",
             "partner_id": "ptnr_klarity",
@@ -765,7 +765,7 @@ class TestBindFlow:
         # Bind with idempotency key
         idempotency_key = f"test-idempotency-{uuid.uuid4()}"
         bind_headers = {
-            "Authorization": "Bearer sk_test_partner_1",
+            "Authorization": "Bearer KLARITY_TEST_KEY",
             "X-Idempotency-Key": idempotency_key
         }
         
@@ -794,7 +794,7 @@ class TestBindFlow:
     
     def test_bind_writes_ledger(self):
         """Test that binding writes to ledger."""
-        headers = {"Authorization": "Bearer sk_test_partner_1"}
+        headers = {"Authorization": "Bearer KLARITY_TEST_KEY"}
         
         # Create and bind a shipping quote (simpler for this test)
         quote_data = {
@@ -940,7 +940,7 @@ class TestSimulationStability:
     
     def test_portfolio_endpoint(self):
         """Test portfolio simulation endpoint."""
-        headers = {"Authorization": "Bearer sk_test_partner_1"}
+        headers = {"Authorization": "Bearer KLARITY_TEST_KEY"}
         
         data = {
             "as_of_month": "2025-01",
@@ -972,7 +972,7 @@ class TestEndToEndSmoke:
     
     def test_shipping_full_flow(self):
         """Test complete flow for shipping insurance."""
-        headers = {"Authorization": "Bearer sk_test_partner_1"}
+        headers = {"Authorization": "Bearer KLARITY_TEST_KEY"}
         
         # 1. Create quote
         quote_data = {
@@ -1040,17 +1040,17 @@ class TestEndToEndSmoke:
     
     def test_ppi_full_flow(self):
         """Test complete flow for PPI insurance."""
-        headers = {"Authorization": "Bearer sk_test_partner_1"}
+        headers = {"Authorization": "Bearer KLARITY_TEST_KEY"}
         
         # 1. Create quote
         quote_data = {
             "product_code": "ppi",
             "partner_id": "ptnr_klarity",
-            "order_value": 8000.0,
+            "order_value": 2000.0,
             "term_months": 12,
             "age": 32,
             "tenure_months": 36,
-            "job_category": "professional",
+            "job_category": "full_time",
             "state": "TX"
         }
         
@@ -1088,7 +1088,7 @@ class TestEndToEndSmoke:
     
     def test_blocked_quote_compliance(self):
         """Test that blocked quotes are rejected at quote stage."""
-        headers = {"Authorization": "Bearer sk_test_partner_1"}
+        headers = {"Authorization": "Bearer KLARITY_TEST_KEY"}
         
         # Try to quote PPI in Georgia (should be blocked at quote stage)
         quote_data = {
