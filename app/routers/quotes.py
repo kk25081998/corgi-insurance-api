@@ -151,13 +151,73 @@ async def create_quote(
     current_month = datetime.now().strftime("%Y-%m")
     carrier_capacities = get_carrier_capacities_for_month(carrier_list, current_month, session)
     
-    # Calculate pricing for each carrier to find the best one
-    best_carrier_id = None
-    best_premium = float('inf')
-    best_breakdown = None
+    # Calculate pricing and margins for each carrier, checking appetite and capacity
+    # Per assignment: "Choose the highest margin among accepted; tie-break: lower premium"
+    eligible_carrier_evaluations = []
+    
+    # Add risk_band to request_data for appetite checking
+    request_data_with_band = {**request_data, "risk_band": risk_assessment["risk_band"]}
     
     for carrier in carrier_list:
         try:
+            # Parse appetite configuration
+            appetite = json.loads(carrier["appetite_json"]) if isinstance(carrier["appetite_json"], str) else carrier["appetite_json"]
+            
+            # Get product-specific appetite
+            product_appetite = appetite.get(request.product_code, {})
+            
+            # Check appetite constraints
+            appetite_ok = True
+            rejection_reason = None
+            
+            # Check excluded states
+            if policyholder.get("state") in product_appetite.get("excluded_states", []):
+                appetite_ok = False
+                rejection_reason = f"State {policyholder.get('state')} excluded"
+            
+            # Check excluded categories (shipping)
+            if request.product_code == "shipping":
+                if request_data.get("item_category") in product_appetite.get("excluded_categories", []):
+                    appetite_ok = False
+                    rejection_reason = f"Category {request_data.get('item_category')} excluded"
+                
+                # Check max declared value
+                max_value = product_appetite.get("max_declared_value", float('inf'))
+                if request_data.get("declared_value", 0) > max_value:
+                    appetite_ok = False
+                    rejection_reason = f"Declared value exceeds max ${max_value}"
+            
+            # Check PPI constraints
+            if request.product_code == "ppi":
+                # Check max term
+                max_term = product_appetite.get("max_term_months", float('inf'))
+                if request_data.get("term_months", 0) > max_term:
+                    appetite_ok = False
+                    rejection_reason = f"Term exceeds max {max_term} months"
+                
+                # Check max risk band
+                max_risk_band = product_appetite.get("max_risk_band")
+                if max_risk_band:
+                    band_order = {"A": 1, "B": 2, "C": 3, "D": 4, "E": 5}
+                    if band_order.get(risk_assessment["risk_band"], 5) > band_order.get(max_risk_band, 5):
+                        appetite_ok = False
+                        rejection_reason = f"Risk band {risk_assessment['risk_band']} exceeds max {max_risk_band}"
+                
+                # Check excluded job categories
+                if request_data.get("job_category") in product_appetite.get("excluded_job_categories", []):
+                    appetite_ok = False
+                    rejection_reason = f"Job category {request_data.get('job_category')} excluded"
+            
+            # Check capacity
+            current_capacity = carrier_capacities.get(carrier["id"], 0)
+            if current_capacity <= 0:
+                appetite_ok = False
+                rejection_reason = "No capacity available"
+            
+            if not appetite_ok:
+                logger.debug(f"Carrier {carrier['id']} rejected: {rejection_reason}")
+                continue
+            
             # Get pricing curve for this carrier from cache (avoids disk I/O)
             pricing_curve = config_cache.get_pricing_curve_for_carrier(
                 carrier["id"], 
@@ -174,33 +234,52 @@ async def create_quote(
                 risk_assessment["risk_band"]
             )
             
-            # Check if this carrier is eligible and has better pricing
-            if premium_cents < best_premium:
-                best_premium = premium_cents
-                best_breakdown = breakdown
-                best_carrier_id = carrier["id"]
+            # Calculate expected margin per assignment formula
+            # margin = premium - (premium * 0.60 * risk_multiplier)
+            expected_margin = premium_cents - (premium_cents * 0.60 * risk_assessment["risk_multiplier"])
+            
+            eligible_carrier_evaluations.append({
+                "carrier_id": carrier["id"],
+                "carrier_name": carrier["name"],
+                "premium_cents": premium_cents,
+                "breakdown": breakdown,
+                "expected_margin": expected_margin,
+                "capacity": current_capacity
+            })
                 
         except Exception as e:
             # Skip carriers with pricing issues
+            logger.warning(f"Skipping carrier {carrier['id']} due to error: {e}")
             continue
     
-    if not best_carrier_id:
+    if not eligible_carrier_evaluations:
         logger.error(f"No eligible carriers found | request_id={request_id}")
         raise HTTPException(
             status_code=500,
             detail="No eligible carriers found for this quote"
         )
     
-    # Route to best carrier
-    carrier_suggestion, router_rationale = route_to_carrier(
-        request.product_code,
-        request_data,
-        policyholder,
-        best_premium,
-        risk_assessment["risk_multiplier"],
-        carrier_list,
-        carrier_capacities
+    # Sort by highest margin, then by lowest premium (tie-breaker)
+    eligible_carrier_evaluations.sort(key=lambda x: (-x["expected_margin"], x["premium_cents"]))
+    
+    # Select best carrier based on margin
+    selected_carrier = eligible_carrier_evaluations[0]
+    carrier_suggestion = selected_carrier["carrier_id"]
+    best_premium = selected_carrier["premium_cents"]
+    best_breakdown = selected_carrier["breakdown"]
+    best_margin = selected_carrier["expected_margin"]
+    
+    # Create rationale
+    router_rationale = (
+        f"Selected {carrier_suggestion} with margin ${best_margin/100:.2f} "
+        f"(premium: ${best_premium/100:.2f}, capacity: {selected_carrier['capacity']})"
     )
+    
+    # Log other candidates for debugging
+    if len(eligible_carrier_evaluations) > 1:
+        other_carriers = [f"{c['carrier_id']} (margin: ${c['expected_margin']/100:.2f})" 
+                         for c in eligible_carrier_evaluations[1:]]
+        logger.debug(f"Other eligible carriers: {', '.join(other_carriers)}")
     
     # Create quote record
     quote = Quote(
